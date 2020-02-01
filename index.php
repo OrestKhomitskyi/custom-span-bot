@@ -26,7 +26,6 @@ $url = 'https://customspambot.herokuapp.com'; // URL RSS feed
 $update = json_decode(file_get_contents('php://input'));
 //your app
 try {
-    $client->var_dump($update->message);
 
     error_log(serialize($update->message));
 
