@@ -28,7 +28,7 @@ set_api_key($api_key);
 function getMoodSmile($path) {
 
     $response_array = json_decode(facial_emotion($path), TRUE);
-
+    error_log("serialized: ".serialize($response_array));
     $max = $response_array['facial_emotion'][0];
     for($i = 1; $i < count($response_array); $i++) {
         if ($response_array[i]['score'] > $max['score'] ) {
@@ -65,13 +65,13 @@ try {
         $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/".$filePath);
 
 
-        $fullPath = explode('/', $filePath)[1];
+        $fullPath = explode('/', $d)[1];
         error_log("full path: ". $fullPath);
         file_put_contents($fullPath, $data);
 
         error_log("File exist: ". file_exists($fullPath));
-        $smile = getMoodSmile($fullPath);
-
+        $smile = getMoodSmile(__DIR__.'/'.$fullPath);
+        error_log('my smile:', $smile);
         $response=$client->sendMessage([
             'chat_id' => $update->message->chat->id,
             'text'=> "Твое настроение ".$smile]
