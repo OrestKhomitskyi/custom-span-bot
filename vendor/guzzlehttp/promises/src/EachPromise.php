@@ -24,6 +24,9 @@ class EachPromise implements PromisorInterface
     /** @var Promise */
     private $aggregate;
 
+    /** @var bool */
+    private $mutex;
+
     /**
      * Configuration hash can include the following key value pairs:
      *
@@ -71,7 +74,11 @@ class EachPromise implements PromisorInterface
         try {
             $this->createPromise();
             $this->iterable->rewind();
-            $this->refillPending();
+            if (!$this->checkIfFinished()) {
+                $this->refillPending();
+            }
+        } catch (\Throwable $e) {
+            $this->aggregate->reject($e);
         } catch (\Exception $e) {
             $this->aggregate->reject($e);
         }
@@ -81,6 +88,7 @@ class EachPromise implements PromisorInterface
 
     private function createPromise()
     {
+        $this->mutex = false;
         $this->aggregate = new Promise(function () {
             reset($this->pending);
             // Consume a potentially fluctuating list of promises while
@@ -138,21 +146,27 @@ class EachPromise implements PromisorInterface
         }
 
         $promise = promise_for($this->iterable->current());
-        $idx = $this->iterable->key();
+        $key = $this->iterable->key();
+
+        // Iterable keys may not be unique, so we add the promises at the end
+        // of the pending array and retrieve the array index being used
+        $this->pending[] = null;
+        end($this->pending);
+        $idx = key($this->pending);
 
         $this->pending[$idx] = $promise->then(
-            function ($value) use ($idx) {
+            function ($value) use ($idx, $key) {
                 if ($this->onFulfilled) {
                     call_user_func(
-                        $this->onFulfilled, $value, $idx, $this->aggregate
+                        $this->onFulfilled, $value, $key, $this->aggregate
                     );
                 }
                 $this->step($idx);
             },
-            function ($reason) use ($idx) {
+            function ($reason) use ($idx, $key) {
                 if ($this->onRejected) {
                     call_user_func(
-                        $this->onRejected, $reason, $idx, $this->aggregate
+                        $this->onRejected, $reason, $key, $this->aggregate
                     );
                 }
                 $this->step($idx);
@@ -164,11 +178,25 @@ class EachPromise implements PromisorInterface
 
     private function advanceIterator()
     {
+        // Place a lock on the iterator so that we ensure to not recurse,
+        // preventing fatal generator errors.
+        if ($this->mutex) {
+            return false;
+        }
+
+        $this->mutex = true;
+
         try {
             $this->iterable->next();
+            $this->mutex = false;
             return true;
+        } catch (\Throwable $e) {
+            $this->aggregate->reject($e);
+            $this->mutex = false;
+            return false;
         } catch (\Exception $e) {
             $this->aggregate->reject($e);
+            $this->mutex = false;
             return false;
         }
     }
@@ -181,9 +209,11 @@ class EachPromise implements PromisorInterface
         }
 
         unset($this->pending[$idx]);
-        $this->advanceIterator();
 
-        if (!$this->checkIfFinished()) {
+        // Only refill pending promises if we are not locked, preventing the
+        // EachPromise to recursively invoke the provided iterator, which
+        // cause a fatal error: "Cannot resume an already running generator"
+        if ($this->advanceIterator() && !$this->checkIfFinished()) {
             // Add more pending promises if possible.
             $this->refillPending();
         }

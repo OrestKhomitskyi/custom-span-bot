@@ -14,13 +14,17 @@ namespace GuzzleHttp\Promise;
  * }
  * </code>
  *
- * @return TaskQueue
+ * @param TaskQueueInterface $assign Optionally specify a new queue instance.
+ *
+ * @return TaskQueueInterface
  */
-function queue()
+function queue(TaskQueueInterface $assign = null)
 {
     static $queue;
 
-    if (!$queue) {
+    if ($assign) {
+        $queue = $assign;
+    } elseif (!$queue) {
         $queue = new TaskQueue();
     }
 
@@ -42,6 +46,8 @@ function task(callable $task)
     $queue->add(function () use ($task, $promise) {
         try {
             $promise->resolve($task());
+        } catch (\Throwable $e) {
+            $promise->reject($e);
         } catch (\Exception $e) {
             $promise->reject($e);
         }
@@ -97,11 +103,11 @@ function rejection_for($reason)
  *
  * @param mixed $reason
  *
- * @return \Exception
+ * @return \Exception|\Throwable
  */
 function exception_for($reason)
 {
-    return $reason instanceof \Exception
+    return $reason instanceof \Exception || $reason instanceof \Throwable
         ? $reason
         : new RejectionException($reason);
 }
@@ -146,9 +152,11 @@ function inspect(PromiseInterface $promise)
             'value' => $promise->wait()
         ];
     } catch (RejectionException $e) {
-        return ['state' => 'rejected', 'reason' => $e->getReason()];
+        return ['state' => PromiseInterface::REJECTED, 'reason' => $e->getReason()];
+    } catch (\Throwable $e) {
+        return ['state' => PromiseInterface::REJECTED, 'reason' => $e];
     } catch (\Exception $e) {
-        return ['state' => 'rejected', 'reason' => $e];
+        return ['state' => PromiseInterface::REJECTED, 'reason' => $e];
     }
 }
 
@@ -184,6 +192,7 @@ function inspect_all($promises)
  *
  * @return array
  * @throws \Exception on error
+ * @throws \Throwable on error in PHP >=7
  */
 function unwrap($promises)
 {
@@ -204,13 +213,14 @@ function unwrap($promises)
  * rejects, the returned promise is rejected with the rejection reason.
  *
  * @param mixed $promises Promises or values.
+ * @param bool $recursive - If true, resolves new promises that might have been added to the stack during its own resolution.
  *
- * @return Promise
+ * @return PromiseInterface
  */
-function all($promises)
+function all($promises, $recursive = false)
 {
     $results = [];
-    return each(
+    $promise = \GuzzleHttp\Promise\each(
         $promises,
         function ($value, $idx) use (&$results) {
             $results[$idx] = $value;
@@ -222,6 +232,19 @@ function all($promises)
         ksort($results);
         return $results;
     });
+
+    if (true === $recursive) {
+        $promise = $promise->then(function ($results) use ($recursive, &$promises) {
+            foreach ($promises AS $promise) {
+                if (\GuzzleHttp\Promise\PromiseInterface::PENDING === $promise->getState()) {
+                    return all($promises, $recursive);
+                }
+            }
+            return $results;
+        });
+    }
+
+    return $promise;
 }
 
 /**
@@ -232,20 +255,20 @@ function all($promises)
  * fulfilled with an array that contains the fulfillment values of the winners
  * in order of resolution.
  *
- * This prommise is rejected with a {@see GuzzleHttp\Promise\AggregateException}
+ * This promise is rejected with a {@see GuzzleHttp\Promise\AggregateException}
  * if the number of fulfilled promises is less than the desired $count.
  *
  * @param int   $count    Total number of promises.
  * @param mixed $promises Promises or values.
  *
- * @return Promise
+ * @return PromiseInterface
  */
 function some($count, $promises)
 {
     $results = [];
     $rejections = [];
 
-    return each(
+    return \GuzzleHttp\Promise\each(
         $promises,
         function ($value, $idx, PromiseInterface $p) use (&$results, $count) {
             if ($p->getState() !== PromiseInterface::PENDING) {
@@ -294,20 +317,20 @@ function any($promises)
  *
  * @param mixed $promises Promises or values.
  *
- * @return Promise
+ * @return PromiseInterface
  * @see GuzzleHttp\Promise\inspect for the inspection state array format.
  */
 function settle($promises)
 {
     $results = [];
 
-    return each(
+    return \GuzzleHttp\Promise\each(
         $promises,
         function ($value, $idx) use (&$results) {
-            $results[$idx] = ['state' => 'fulfilled', 'value' => $value];
+            $results[$idx] = ['state' => PromiseInterface::FULFILLED, 'value' => $value];
         },
         function ($reason, $idx) use (&$results) {
-            $results[$idx] = ['state' => 'rejected', 'reason' => $reason];
+            $results[$idx] = ['state' => PromiseInterface::REJECTED, 'reason' => $reason];
         }
     )->then(function () use (&$results) {
         ksort($results);
@@ -332,7 +355,7 @@ function settle($promises)
  * @param callable $onFulfilled
  * @param callable $onRejected
  *
- * @return Promise
+ * @return PromiseInterface
  */
 function each(
     $iterable,
@@ -358,7 +381,7 @@ function each(
  * @param callable     $onFulfilled
  * @param callable     $onRejected
  *
- * @return mixed
+ * @return PromiseInterface
  */
 function each_limit(
     $iterable,
@@ -382,7 +405,7 @@ function each_limit(
  * @param int|callable $concurrency
  * @param callable     $onFulfilled
  *
- * @return mixed
+ * @return PromiseInterface
  */
 function each_limit_all(
     $iterable,
@@ -436,60 +459,13 @@ function is_settled(PromiseInterface $promise)
 }
 
 /**
- * Creates a promise that is resolved using a generator that yields values or
- * promises (somewhat similar to C#'s async keyword).
+ * @see Coroutine
  *
- * When called, the coroutine function will start an instance of the generator
- * and returns a promise that is fulfilled with its final yielded value.
+ * @param callable $generatorFn
  *
- * Control is returned back to the generator when the yielded promise settles.
- * This can lead to less verbose code when doing lots of sequential async calls
- * with minimal processing in between.
- *
- *     use GuzzleHttp\Promise;
- *
- *     function createPromise($value) {
- *         return new Promise\FulfilledPromise($value);
- *     }
- *
- *     $promise = Promise\coroutine(function () {
- *         $value = (yield createPromise('a'));
- *         try {
- *             $value = (yield createPromise($value . 'b'));
- *         } catch (\Exception $e) {
- *             // The promise was rejected.
- *         }
- *         yield $value . 'c';
- *     });
- *
- *     // Outputs "abc"
- *     $promise->then(function ($v) { echo $v; });
- *
- * @param callable $generatorFn Generator function to wrap into a promise.
- *
- * @return Promise
- * @link https://github.com/petkaantonov/bluebird/blob/master/API.md#generators inspiration
+ * @return PromiseInterface
  */
 function coroutine(callable $generatorFn)
 {
-    $generator = $generatorFn();
-    return __next_coroutine($generator->current(), $generator)->then();
-}
-
-/** @internal */
-function __next_coroutine($yielded, \Generator $generator)
-{
-    return promise_for($yielded)->then(
-        function ($value) use ($generator) {
-            $nextYield = $generator->send($value);
-            return $generator->valid()
-                ? __next_coroutine($nextYield, $generator)
-                : $value;
-        },
-        function ($reason) use ($generator) {
-            $nextYield = $generator->throw(exception_for($reason));
-            // The throw was caught, so keep iterating on the coroutine
-            return __next_coroutine($nextYield, $generator);
-        }
-    );
+    return new Coroutine($generatorFn);
 }

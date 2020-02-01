@@ -1,10 +1,10 @@
 <?php
-namespace GuzzleHttp\Tests;
+namespace GuzzleHttp\Tests\Psr7;
 
 use GuzzleHttp\Psr7;
 use GuzzleHttp\Psr7\MultipartStream;
 
-class MultipartStreamTest extends \PHPUnit_Framework_TestCase
+class MultipartStreamTest extends BaseTest
 {
     public function testCreatesDefaultBoundary()
     {
@@ -64,6 +64,34 @@ class MultipartStreamTest extends \PHPUnit_Framework_TestCase
             "--boundary\r\nContent-Disposition: form-data; name=\"foo\"\r\nContent-Length: 3\r\n\r\n"
             . "bar\r\n--boundary\r\nContent-Disposition: form-data; name=\"baz\"\r\nContent-Length: 3"
             . "\r\n\r\nbam\r\n--boundary--\r\n", (string) $b);
+    }
+
+    public function testSerializesNonStringFields()
+    {
+        $b = new MultipartStream([
+            [
+                'name'     => 'int',
+                'contents' => (int) 1
+            ],
+            [
+                'name' => 'bool',
+                'contents' => (boolean) false
+            ],
+            [
+                'name' => 'bool2',
+                'contents' => (boolean) true
+            ],
+            [
+                'name' => 'float',
+                'contents' => (float) 1.1
+            ]
+        ], 'boundary');
+        $this->assertEquals(
+            "--boundary\r\nContent-Disposition: form-data; name=\"int\"\r\nContent-Length: 1\r\n\r\n"
+            . "1\r\n--boundary\r\nContent-Disposition: form-data; name=\"bool\"\r\n\r\n\r\n--boundary"
+            . "\r\nContent-Disposition: form-data; name=\"bool2\"\r\nContent-Length: 1\r\n\r\n"
+            . "1\r\n--boundary\r\nContent-Disposition: form-data; name=\"float\"\r\nContent-Length: 3"
+            . "\r\n\r\n1.1\r\n--boundary--\r\n", (string) $b);
     }
 
     public function testSerializesFiles()

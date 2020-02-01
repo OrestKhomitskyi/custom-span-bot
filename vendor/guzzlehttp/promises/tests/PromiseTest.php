@@ -3,14 +3,16 @@ namespace GuzzleHttp\Promise\Tests;
 
 use GuzzleHttp\Promise\CancellationException;
 use GuzzleHttp\Promise as P;
+use GuzzleHttp\Promise\FulfilledPromise;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\RejectedPromise;
 use GuzzleHttp\Promise\RejectionException;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers GuzzleHttp\Promise\Promise
  */
-class PromiseTest extends \PHPUnit_Framework_TestCase
+class PromiseTest extends TestCase
 {
     /**
      * @expectedException \LogicException
@@ -29,6 +31,7 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
         $p = new Promise();
         $p->resolve('foo');
         $p->resolve('foo');
+        $this->assertSame('foo', $p->wait());
     }
 
     /**
@@ -48,6 +51,7 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
         $p = new Promise();
         $p->reject('foo');
         $p->reject('foo');
+        $this->assertSame('rejected', $p->getState());
     }
 
     /**
@@ -69,6 +73,7 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @expectedException \GuzzleHttp\Promise\RejectionException
+     * @expectedExceptionMessage The promise was rejected with reason: Invoking the wait callback did not resolve the promise
      */
     public function testRejectsAndThrowsWhenWaitFailsToResolve()
     {
@@ -170,6 +175,18 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
         $p2 = new Promise(function () use (&$p2, $p3) { $p2->reject($p3); });
         $p = new Promise(function () use (&$p, $p2) { $p->reject($p2); });
         $this->assertEquals('Whoop', $p->wait());
+    }
+
+    public function testWaitsOnAPromiseChainEvenWhenNotUnwrapped()
+    {
+        $p2 = new Promise(function () use (&$p2) {
+            $p2->reject('Fail');
+        });
+        $p = new Promise(function () use ($p2, &$p) {
+            $p->resolve($p2);
+        });
+        $p->wait(false);
+        $this->assertSame(Promise::REJECTED, $p2->getState());
     }
 
     public function testCannotCancelNonPending()
@@ -297,7 +314,7 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
         $p->resolve('foo');
         $p2 = $p->then();
         $this->assertNotSame($p, $p2);
-        $this->assertInstanceOf('GuzzleHttp\Promise\FulfilledPromise', $p2);
+        $this->assertInstanceOf(FulfilledPromise::class, $p2);
     }
 
     public function testCreatesPromiseWhenRejectedAfterThen()
@@ -329,7 +346,7 @@ class PromiseTest extends \PHPUnit_Framework_TestCase
         $p->reject('foo');
         $p2 = $p->then();
         $this->assertNotSame($p, $p2);
-        $this->assertInstanceOf('GuzzleHttp\Promise\RejectedPromise', $p2);
+        $this->assertInstanceOf(RejectedPromise::class, $p2);
     }
 
     public function testInvokesWaitFnsForThens()

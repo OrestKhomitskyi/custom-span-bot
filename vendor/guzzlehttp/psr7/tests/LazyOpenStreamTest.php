@@ -3,11 +3,11 @@ namespace GuzzleHttp\Tests\Psr7;
 
 use GuzzleHttp\Psr7\LazyOpenStream;
 
-class LazyOpenStreamTest extends \PHPUnit_Framework_TestCase
+class LazyOpenStreamTest extends BaseTest
 {
     private $fname;
 
-    public function setup()
+    protected function setUp()
     {
         $this->fname = tempnam('/tmp', 'tfile');
 
@@ -16,7 +16,7 @@ class LazyOpenStreamTest extends \PHPUnit_Framework_TestCase
         }
     }
 
-    public function tearDown()
+    protected function tearDown()
     {
         if (file_exists($this->fname)) {
             unlink($this->fname);

@@ -7,16 +7,26 @@ use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\EachPromise;
 use GuzzleHttp\Promise as P;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers GuzzleHttp\Promise\EachPromise
  */
-class EachPromiseTest extends \PHPUnit_Framework_TestCase
+class EachPromiseTest extends TestCase
 {
     public function testReturnsSameInstance()
     {
         $each = new EachPromise([], ['concurrency' => 100]);
         $this->assertSame($each->promise(), $each->promise());
+    }
+
+    public function testResolvesInCaseOfAnEmptyList()
+    {
+        $promises = [];
+        $each = new EachPromise($promises);
+        $p = $each->promise();
+        $this->assertNull($p->wait());
+        $this->assertEquals(PromiseInterface::FULFILLED, $p->getState());
     }
 
     public function testInvokesAllPromises()
@@ -39,8 +49,8 @@ class EachPromiseTest extends \PHPUnit_Framework_TestCase
 
     public function testIsWaitable()
     {
-        $a = new Promise(function () use (&$a) { $a->resolve('a'); });
-        $b = new Promise(function () use (&$b) { $b->resolve('b'); });
+        $a = $this->createSelfResolvingPromise('a');
+        $b = $this->createSelfResolvingPromise('b');
         $called = [];
         $each = new EachPromise([$a, $b], [
             'fulfilled' => function ($value) use (&$called) { $called[] = $value; }
@@ -54,7 +64,7 @@ class EachPromiseTest extends \PHPUnit_Framework_TestCase
     public function testCanResolveBeforeConsumingAll()
     {
         $called = 0;
-        $a = new Promise(function () use (&$a) { $a->resolve('a'); });
+        $a = $this->createSelfResolvingPromise('a');
         $b = new Promise(function () { $this->fail(); });
         $each = new EachPromise([$a, $b], [
             'fulfilled' => function ($value, $idx, Promise $aggregate) use (&$called) {
@@ -157,7 +167,23 @@ class EachPromiseTest extends \PHPUnit_Framework_TestCase
 
     public function testCanBeCancelled()
     {
-        $this->markTestIncomplete();
+        $called = false;
+        $a = new FulfilledPromise('a');
+        $b = new Promise(function () use (&$called) { $called = true; });
+        $each = new EachPromise([$a, $b], [
+            'fulfilled' => function ($value, $idx, Promise $aggregate) {
+                $aggregate->cancel();
+            },
+            'rejected' => function ($reason) use (&$called) {
+                $called = true;
+            },
+        ]);
+        $p = $each->promise();
+        $p->wait(false);
+        $this->assertEquals(PromiseInterface::FULFILLED, $a->getState());
+        $this->assertEquals(PromiseInterface::PENDING, $b->getState());
+        $this->assertEquals(PromiseInterface::REJECTED, $p->getState());
+        $this->assertFalse($called);
     }
 
     public function testDoesNotBlowStackWithFulfilledPromises()
@@ -229,7 +255,7 @@ class EachPromiseTest extends \PHPUnit_Framework_TestCase
         $received = null;
         $p->then(null, function ($reason) use (&$e) { $e = $reason; });
         P\queue()->run();
-        $this->assertInstanceOf('Exception', $e);
+        $this->assertInstanceOf(\Exception::class, $e);
         $this->assertEquals('Failure', $e->getMessage());
     }
 
@@ -284,5 +310,70 @@ class EachPromiseTest extends \PHPUnit_Framework_TestCase
             P\queue()->run();
         }
         $this->assertEquals(range(0, 9), $results);
+    }
+
+    private function createSelfResolvingPromise($value)
+    {
+        $p = new Promise(function () use (&$p, $value) {
+            $p->resolve($value);
+        });
+
+        return $p;
+    }
+
+    public function testMutexPreventsGeneratorRecursion()
+    {
+        $results = $promises = [];
+        for ($i = 0; $i < 20; $i++) {
+            $p = $this->createSelfResolvingPromise($i);
+            $pending[] = $p;
+            $promises[] = $p;
+        }
+
+        $iter = function () use (&$promises, &$pending) {
+            foreach ($promises as $promise) {
+                // Resolve a promises, which will trigger the then() function,
+                // which would cause the EachPromise to try to add more
+                // promises to the queue. Without a lock, this would trigger
+                // a "Cannot resume an already running generator" fatal error.
+                if ($p = array_pop($pending)) {
+                    $p->wait();
+                }
+                yield $promise;
+            }
+        };
+
+        $each = new EachPromise($iter(), [
+            'concurrency' => 5,
+            'fulfilled' => function ($r) use (&$results, &$pending) {
+                $results[] = $r;
+            }
+        ]);
+
+        $each->promise()->wait();
+        $this->assertCount(20, $results);
+    }
+
+    public function testIteratorWithSameKey()
+    {
+        $iter = function () {
+            yield 'foo' => $this->createSelfResolvingPromise(1);
+            yield 'foo' => $this->createSelfResolvingPromise(2);
+            yield 1 => $this->createSelfResolvingPromise(3);
+            yield 1 => $this->createSelfResolvingPromise(4);
+        };
+        $called = 0;
+        $each = new EachPromise($iter(), [
+            'fulfilled' => function ($value, $idx, Promise $aggregate) use (&$called) {
+                $called++;
+                if ($value < 3) {
+                    $this->assertSame('foo', $idx);
+                } else {
+                    $this->assertSame(1, $idx);
+                }
+            },
+        ]);
+        $each->promise()->wait();
+        $this->assertSame(4, $called);
     }
 }

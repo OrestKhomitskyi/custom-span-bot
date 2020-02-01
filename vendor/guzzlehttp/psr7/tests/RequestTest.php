@@ -1,13 +1,15 @@
 <?php
 namespace GuzzleHttp\Tests\Psr7;
 
+use GuzzleHttp\Psr7;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
 
 /**
+ * @covers GuzzleHttp\Psr7\MessageTrait
  * @covers GuzzleHttp\Psr7\Request
  */
-class RequestTest extends \PHPUnit_Framework_TestCase
+class RequestTest extends BaseTest
 {
     public function testRequestUriMayBeString()
     {
@@ -27,13 +29,43 @@ class RequestTest extends \PHPUnit_Framework_TestCase
      */
     public function testValidateRequestUri()
     {
-        new Request('GET', true);
+        new Request('GET', '///');
     }
 
     public function testCanConstructWithBody()
     {
         $r = new Request('GET', '/', [], 'baz');
+        $this->assertInstanceOf('Psr\Http\Message\StreamInterface', $r->getBody());
         $this->assertEquals('baz', (string) $r->getBody());
+    }
+
+    public function testNullBody()
+    {
+        $r = new Request('GET', '/', [], null);
+        $this->assertInstanceOf('Psr\Http\Message\StreamInterface', $r->getBody());
+        $this->assertSame('', (string) $r->getBody());
+    }
+
+    public function testFalseyBody()
+    {
+        $r = new Request('GET', '/', [], '0');
+        $this->assertInstanceOf('Psr\Http\Message\StreamInterface', $r->getBody());
+        $this->assertSame('0', (string) $r->getBody());
+    }
+
+    public function testConstructorDoesNotReadStreamBody()
+    {
+        $streamIsRead = false;
+        $body = Psr7\FnStream::decorate(Psr7\stream_for(''), [
+            '__toString' => function () use (&$streamIsRead) {
+                $streamIsRead = true;
+                return '';
+            }
+        ]);
+
+        $r = new Request('GET', '/', [], $body);
+        $this->assertFalse($streamIsRead);
+        $this->assertSame($body, $r->getBody());
     }
 
     public function testCapitalizesMethod()
@@ -57,6 +89,35 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertNotSame($r1, $r2);
         $this->assertSame($u2, $r2->getUri());
         $this->assertSame($u1, $r1->getUri());
+    }
+
+    /**
+     * @dataProvider invalidMethodsProvider
+     */
+    public function testConstructWithInvalidMethods($method)
+    {
+        $this->expectException('InvalidArgumentException');
+        new Request($method, '/');
+    }
+
+    /**
+     * @dataProvider invalidMethodsProvider
+     */
+    public function testWithInvalidMethods($method)
+    {
+        $r = new Request('get', '/');
+        $this->expectException('InvalidArgumentException');
+        $r->withMethod($method);
+    }
+
+    public function invalidMethodsProvider()
+    {
+        return [
+            [null],
+            [false],
+            [['foo']],
+            [new \stdClass()],
+        ];
     }
 
     public function testSameInstanceWhenSameUri()
@@ -99,6 +160,12 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('/baz?bar=bam', $r1->getRequestTarget());
     }
 
+    public function testBuildsRequestTargetWithFalseyQuery()
+    {
+        $r1 = new Request('GET', 'http://foo.com/baz?0');
+        $this->assertEquals('/baz?0', $r1->getRequestTarget());
+    }
+
     public function testHostIsAddedFirst()
     {
         $r = new Request('GET', 'http://foo.com/baz?bar=bam', ['Foo' => 'Bar']);
@@ -125,6 +192,14 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('a.com', $r2->getHeaderLine('Host'));
     }
 
+    public function testWithUriSetsHostIfNotSet()
+    {
+        $r = (new Request('GET', 'http://foo.com/baz?bar=bam'))->withoutHeader('Host');
+        $this->assertEquals([], $r->getHeaders());
+        $r2 = $r->withUri(new Uri('http://www.baz.com/bar'), true);
+        $this->assertSame('www.baz.com', $r2->getHeaderLine('Host'));
+    }
+
     public function testOverridesHostWithUri()
     {
         $r = new Request('GET', 'http://foo.com/baz?bar=bam');
@@ -135,10 +210,11 @@ class RequestTest extends \PHPUnit_Framework_TestCase
 
     public function testAggregatesHeaders()
     {
-        $r = new Request('GET', 'http://foo.com', [
+        $r = new Request('GET', '', [
             'ZOO' => 'zoobar',
             'zoo' => ['foobar', 'zoobar']
         ]);
+        $this->assertEquals(['ZOO' => ['zoobar', 'foobar', 'zoobar']], $r->getHeaders());
         $this->assertEquals('zoobar, foobar, zoobar', $r->getHeaderLine('zoo'));
     }
 
