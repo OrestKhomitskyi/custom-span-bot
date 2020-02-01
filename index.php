@@ -27,6 +27,9 @@ $update = json_decode(file_get_contents('php://input'));
 try {
     var_dump($update->message);
     var_dump("NNNNNNNNNNNNNNNN");
+    error_log("hello, this is a test!");
+    file_put_contents("php://stderr", "hello, this is a test!\n");
+
     if(file_exists('file.txt')==true){
         unlink('file.txt');
         
