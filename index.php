@@ -26,6 +26,7 @@ $update = json_decode(file_get_contents('php://input'));
 //your app
 try {
     var_dump($update->message);
+    var_dump("NNNNNNNNNNNNNNNN");
     if(file_exists('file.txt')==true){
         unlink('file.txt');
         
