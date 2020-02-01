@@ -25,13 +25,15 @@ $url = 'https://customspambot.herokuapp.com'; // URL RSS feed
 $update = json_decode(file_get_contents('php://input'));
 //your app
 try {
-
+    var_dump($update->message);
     if(file_exists('file.txt')==true){
         unlink('file.txt');
+        
         $response=$client->sendChatAction([
             'chat_id'=>$update->message->chat->id,
             'action'=> 'typing'
         ]);
+        
         if($update->message->text=='Марта' || $update->message->text=='Marta'){
             $response=$client->sendMessage([
                 'chat_id' => $update->message->chat->id,
