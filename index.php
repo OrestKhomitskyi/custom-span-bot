@@ -62,16 +62,14 @@ try {
         error_log("File info: ".serialize($fileInfo));
         $filePath = $fileInfo['result']['file_path'];
         error_log("File path: ".$filePath);
-        $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/file".$filePath);
+        $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/".$filePath);
 
 
         $fullPath = "temp/".$filePath;
         file_put_contents($fullPath, $data);
 
-
-
-        // $smile = getMoodSmile($fullPath);
-        $smile = "dadad";
+        error_log("File exist: ". file_exists($fullPath));
+        $smile = getMoodSmile($fullPath);
 
         $response=$client->sendMessage([
             'chat_id' => $update->message->chat->id,
