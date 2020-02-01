@@ -56,7 +56,8 @@ try {
         error_log("Photo object".serialize($update->message->photo[0]));
         error_log("FileID: ".$file_id);
         
-        $fileInfo = json_decode(file_get_contents("https://api.telegram.org/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/getFile?file_id".$file_id), TRUE);
+        $fileInfo = json_decode(file_get_contents("https://api.telegram.org/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/getFile?file_id=".$file_id), TRUE);
+        error_log("File info: ".serialize(fileInfo));
         $filePath = $fileInfo['result']['file_path'];
         error_log("File path: ".$filePath);
         $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/file".$filePath);
