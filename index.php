@@ -52,6 +52,8 @@ try {
 
     if ($update->message->photo) {
         $file_id = $update->message->photo->file_id;
+
+        error_log("Photo object".serialize($update->message->photo));
         error_log("FileID: ".$file_id);
         
         $fileInfo = json_decode(file_get_contents("https://api.telegram.org/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/getFile?file_id".$file_id), TRUE);
