@@ -19,26 +19,26 @@
 */
 
 require 'vendor/autoload.php';
-require (__DIR__ . '/vendor/paralleldots/apis/autoload.php');
+// require (__DIR__ . '/vendor/paralleldots/apis/autoload.php');
 
 
-$api_key = "UMdMIPiyi0xlKbivrG5Eahx68gscgK4DoAkclkrAmlw";
-set_api_key($api_key);
+// $api_key = "UMdMIPiyi0xlKbivrG5Eahx68gscgK4DoAkclkrAmlw";
+// set_api_key($api_key);
 
-function getMoodSmile($path) {
+// function getMoodSmile($path) {
 
-    $response_array = json_decode(facial_emotion($path), TRUE);
+//     $response_array = json_decode(facial_emotion($path), TRUE);
 
-    $max = $response_array['facial_emotion'][0];
-    for($i = 1; $i < count($response_array); $i++) {
-        if ($response_array[i]['score'] > $max['score'] ) {
-            $max = $response_array[i];
-        }
-    }
+//     $max = $response_array['facial_emotion'][0];
+//     for($i = 1; $i < count($response_array); $i++) {
+//         if ($response_array[i]['score'] > $max['score'] ) {
+//             $max = $response_array[i];
+//         }
+//     }
 
-    return $max['tag'];
+//     return $max['tag'];
 
-}
+// }
 
 
 $client = new Zelenin\Telegram\Bot\Api('399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU'); // Set your access token
@@ -61,7 +61,8 @@ try {
         $fullPath = "temp/".$filePath;
         file_put_contents($fullPath, $data);
 
-        $smile = getMoodSmile($fullPath);
+        // $smile = getMoodSmile($fullPath);
+        $smile = "dadad";
 
         $response=$client->sendMessage([
             'chat_id' => $update->message->chat->id,
