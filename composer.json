@@ -1,9 +1,6 @@
 {
     "require": {
-        // "paralleldots/apis": "*",
         "zelenin/telegram-bot-api": "~0.0",
 	"dg/rss-php": "^1.2"
-    },
-    // "minimum-stability": "dev"
-
+    }
 }
