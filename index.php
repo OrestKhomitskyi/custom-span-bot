@@ -48,43 +48,24 @@ try {
             'text'=> "Hello {$update->message->text}"
         ]);
     }
-    // else if ($update->message->text == '/govno') {
-    //     $response = $client->sendMessage([
-    //     	'chat_id' => $update->message->chat->id,
-    //     	'text' => 
-    //  	])
-    // }
-    else if($update->message->text == '/email')
-    {
-    	$response = $client->sendChatAction(['chat_id' => $update->message->chat->id, 'action' => 'typing']);
-
-    	$response = $client->sendMessage([
-        	'chat_id' => $update->message->chat->id,
-        	'text' => "You can send email to : orestkhomitskyi@gmail.com"
-     	]);
-    }
     else if($update->message->text == '/sayhello'){
         $response = $client->sendChatAction([
             'chat_id' => $update->message->chat->id, 'action' => 'typing']
         );
-
+        
         $response=$client->sendMessage([
             'chat_id' => $update->message->chat->id,
             'text'=>'Tell me your name'
         ]);
         file_put_contents('file.txt','1');
     }
-    else if($update->message->text=='/loveclock'){
+    else if ($update->message->text == '/smileface') {
         $response = $client->sendChatAction([
-                'chat_id' => $update->message->chat->id, 'action' => 'typing']
+            'chat_id' => $update->message->chat->id, 'action' => 'typing']
         );
-        $now=new \DateTime();
-        $date_start=new \DateTime('12/12/2017');
-        $diff=date_diff($now,$date_start);
-        $str="Ви зустрічаєтесь з ідіотом {$diff->y} років {$diff->m} місяців та {$diff->d} днів {$diff->h} годин {$diff->m} хвилин {$diff->s} секунд";
         $response=$client->sendMessage([
-            'chat_id' => $update->message->chat->id,
-            'text'=>$str
+                'chat_id' => $update->message->chat->id,
+                'text'=> "Загрузіть фото свого лиця"
         ]);
     }
     else if($update->message->text == '/help')
@@ -92,7 +73,7 @@ try {
     	$response = $client->sendChatAction(['chat_id' => $update->message->chat->id, 'action' => 'typing']);
     	$response = $client->sendMessage([
     		'chat_id' => $update->message->chat->id,
-    		'text' => "List of commands :\n/email -> Отримати email КОДЄРА\n/loveclock -> введи щоб взнати тривалість стосунків з дебілом\n/help -> Отримати список доступних команд"
+    		'text' => "Список команд :\n/smileface -> Отримати смайл настрою\n/goroskope -> Узнать свой гороскоп\n"
     		]);
     }
     else if($update->message->text == '/latest')
