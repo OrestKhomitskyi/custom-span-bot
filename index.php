@@ -48,30 +48,32 @@ $update = json_decode(file_get_contents('php://input'));
 //your app
 try {
 
-    // error_log(serialize($update->message));
+    error_log(serialize($update->message));
 
-    // if ($update->message->photo) {
-    //     $file_id = $update->message->photo->file_id;
-
-    //     $fileInfo = json_decode(file_get_contents("https://api.telegram.org/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/getFile?file_id".$file_id), TRUE);
-    //     $filePath = $fileInfo['result']['file_path'];
-    //     $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/file".$filePath);
-
-
-    //     $fullPath = "temp/".$filePath;
-    //     file_put_contents($fullPath, $data);
+    if ($update->message->photo) {
+        $file_id = $update->message->photo->file_id;
+        error_log("FileID: ".$file_id);
+        
+        $fileInfo = json_decode(file_get_contents("https://api.telegram.org/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/getFile?file_id".$file_id), TRUE);
+        $filePath = $fileInfo['result']['file_path'];
+        error_log("File path: ".$filePath);
+        $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/file".$filePath);
 
 
+        $fullPath = "temp/".$filePath;
+        file_put_contents($fullPath, $data);
 
-    //     // $smile = getMoodSmile($fullPath);
-    //     $smile = "dadad";
 
-    //     $response=$client->sendMessage([
-    //         'chat_id' => $update->message->chat->id,
-    //         'text'=> "Твое настроение ".$smile]
-    //     );
 
-    // }   
+        // $smile = getMoodSmile($fullPath);
+        $smile = "dadad";
+
+        $response=$client->sendMessage([
+            'chat_id' => $update->message->chat->id,
+            'text'=> "Твое настроение ".$smile]
+        );
+
+    }   
 
     if(file_exists('file.txt')==true){
         unlink('file.txt');
