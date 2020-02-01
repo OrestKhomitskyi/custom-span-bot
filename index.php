@@ -48,6 +48,12 @@ try {
             'text'=> "Hello {$update->message->text}"
         ]);
     }
+    else if ($update->message->text == '/govno') {
+        $response = $client->sendMessage([
+        	'chat_id' => $update->message->chat->id,
+        	'text' => "IDI NAHUI"
+     	])
+    }
     else if($update->message->text == '/email')
     {
     	$response = $client->sendChatAction(['chat_id' => $update->message->chat->id, 'action' => 'typing']);
@@ -86,7 +92,7 @@ try {
     	$response = $client->sendChatAction(['chat_id' => $update->message->chat->id, 'action' => 'typing']);
     	$response = $client->sendMessage([
     		'chat_id' => $update->message->chat->id,
-    		'text' => "List of commands :\n/email -> Отримати email КОДЄРА\n/loveclock -> введи щоб взнати тривалість стосунків з дебілом\n/help -> Отримати список доступних команд"
+    		'text' => "List of commands :\n/email -> Отримати email КОДЄРА\n/loveclock -> введи щоб взнати тривалість стосунків з дебілом\n/help -> Отримати список доступних команд\n/govno - Govno\n"
     		]);
     }
     else if($update->message->text == '/latest')
