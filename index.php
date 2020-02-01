@@ -21,12 +21,12 @@
 require 'vendor/autoload.php';
 
 $client = new Zelenin\Telegram\Bot\Api('399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU'); // Set your access token
+$
 $url = 'https://customspambot.herokuapp.com'; // URL RSS feed
 $update = json_decode(file_get_contents('php://input'));
 //your app
 try {
-    var_dump($update->message);
-    error_log($update->message);
+    $client->var_dump($update->message);
 
     if(file_exists('file.txt')==true){
         unlink('file.txt');
