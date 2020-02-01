@@ -65,7 +65,7 @@ try {
         $data = file_get_contents("https://api.telegram.org/file/bot399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU/".$filePath);
 
 
-        $fullPath = "temp/".$filePath;
+        $fullPath = $filePath;
         file_put_contents($fullPath, $data);
 
         error_log("File exist: ". file_exists($fullPath));
