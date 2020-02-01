@@ -61,6 +61,8 @@ try {
         $fullPath = "temp/".$filePath;
         file_put_contents($fullPath, $data);
 
+
+        
         // $smile = getMoodSmile($fullPath);
         $smile = "dadad";
 
