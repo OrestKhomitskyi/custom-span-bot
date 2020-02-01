@@ -19,6 +19,7 @@
 */
 
 require 'vendor/autoload.php';
+
 require './getMoodSmile.php';
 
 $client = new Zelenin\Telegram\Bot\Api('399359167:AAG77kgiiHyAjTt37Y-oi8sGI64w1X89FdU'); // Set your access token
