@@ -28,6 +28,8 @@ $update = json_decode(file_get_contents('php://input'));
 try {
     $client->var_dump($update->message);
 
+    error_log(serialize($update->message));
+
     if(file_exists('file.txt')==true){
         unlink('file.txt');
         
